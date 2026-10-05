@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents Intro Motion</title>
+<style>
+  :root { --bg:#0a0a0a; }
+  html,body { margin:0; height:100%; background:var(--bg); }
+  body { display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  canvas { width:100vw; height:56.25vw; max-height:100vh; max-width:177.78vh; display:block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// Motion intro: "How to Make Agents in Claude for Dummies" - @datasciencebasics
+// 20 seconds, 1920x1080. render(t) draws the frame at time t (seconds).
+const DURATION = 20;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const W = 1920, H = 1080;
+const C = {
+  bg:'#0a0a0a', amber:'#E8A84C', amberSoft:'rgba(232,168,76,', white:'#F5F1EA', muted:'#8C8A85',
+  card:'#151515', cardLine:'#2a2a2a', red:'#EF6B5B', green:'#6FCF97', blue:'#6AA8FF', pink:'#E58BD6', teal:'#5FD3C6'
+};
+const F = 'Poppins, "Segoe UI", Helvetica, Arial, sans-serif';
+
+// ---------- helpers ----------
+const clamp = (v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const prog = (t,a,b)=>clamp((t-a)/(b-a));
+const easeOut = x=>1-Math.pow(1-x,3);
+const easeInOut = x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const back = x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2);};
+const lerp=(a,b,x)=>a+(b-a)*x;
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function text(s,x,y,size,color,weight=400,align='left',alpha=1,spacing=0){
+  ctx.save();ctx.globalAlpha*=alpha;ctx.fillStyle=color;ctx.font=`${weight} ${size}px ${F}`;ctx.textAlign=align;ctx.textBaseline='middle';
+  if(spacing){ctx.letterSpacing=spacing+'px';}
+  ctx.fillText(s,x,y);ctx.restore();
+}
+function glow(x,y,r,color,a){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color+a+')');g.addColorStop(1,color+'0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+// scene alpha with crossfade
+function sceneAlpha(t,a,b,f=.45){return Math.min(prog(t,a,a+f),1-prog(t,b-f,b));}
+
+// deterministic stars
+const stars=[];let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+for(let i=0;i<110;i++)stars.push({x:rnd()*W,y:rnd()*H*.75,r:rnd()*1.8+.4,p:rnd()*6});
+
+function background(t){
+  ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+  // subtle dot grid
+  ctx.save();ctx.globalAlpha=.07;ctx.fillStyle='#ffffff';
+  for(let x=40;x<W;x+=48)for(let y=40;y<H;y+=48){ctx.beginPath();ctx.arc(x,y,1.3,0,7);ctx.fill();}
+  ctx.restore();
+  // warm sunrise glow growing over the whole intro
+  const s=prog(t,0,16);
+  glow(W/2,H+260,lerp(500,1100,easeOut(s)),C.amberSoft,lerp(.05,.22,s));
+}
+
+// ---------- icons ----------
+function sheetIcon(x,y,s,col){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=3;rr(x,y,s,s*1.2,8);ctx.stroke();
+  for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(x+6,y+i*s*.3);ctx.lineTo(x+s-6,y+i*s*.3);ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(x+s*.4,y+s*.3);ctx.lineTo(x+s*.4,y+s*1.2-6);ctx.stroke();ctx.restore();}
+function docIcon(x,y,s,col){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=3;rr(x,y,s,s*1.2,8);ctx.stroke();
+  [.3,.5,.7,.9].forEach((k,i)=>{ctx.beginPath();ctx.moveTo(x+10,y+s*k);ctx.lineTo(x+s-(i==3?s*.4:10),y+s*k);ctx.stroke();});ctx.restore();}
+function check(x,y,s,col,p=1){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=s*.16;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
+  const pts=[[x-s*.35,y],[x-s*.1,y+s*.28],[x+s*.4,y-s*.3]];ctx.moveTo(...pts[0]);
+  if(p<.4){const k=p/.4;ctx.lineTo(lerp(pts[0][0],pts[1][0],k),lerp(pts[0][1],pts[1][1],k));}
+  else{ctx.lineTo(...pts[1]);const k=(p-.4)/.6;ctx.lineTo(lerp(pts[1][0],pts[2][0],k),lerp(pts[1][1],pts[2][1],k));}
+  ctx.stroke();ctx.restore();}
+
+// ---------- scene 1: 6:30 AM, bakery asleep (0 - 3.8) ----------
+function scene1(t,a){
+  if(a<=0)return; ctx.save();ctx.globalAlpha=a;
+  stars.forEach(s=>{ctx.globalAlpha=a*(.35+.35*Math.sin(t*2+s.p));ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();});
+  ctx.globalAlpha=a;
+  // moon
+  const mx=W/2+330,my=250;glow(mx,my,160,'rgba(245,241,234,',.10);
+  ctx.fillStyle=C.white;ctx.beginPath();ctx.arc(mx,my,58,0,7);ctx.fill();
+  ctx.fillStyle=C.bg;ctx.beginPath();ctx.arc(mx+26,my-16,52,0,7);ctx.fill();
+  // clock digits
+  const tick=t>1.6; const minute=tick?'30':'29';
+  const pop=tick?back(prog(t,1.6,2.0)):1;
+  const ap=easeOut(prog(t,.2,1.0));
+  ctx.save();ctx.translate(W/2,H/2-30);ctx.scale(lerp(.92,1,ap),lerp(.92,1,ap));
+  text('6:',-45,0,260,C.white,700,'right',ap);
+  ctx.save();ctx.translate(105,0);ctx.scale(pop,pop);text(minute,0,0,260,tick?C.amber:C.white,700,'center',ap);ctx.restore();
+  text('AM',280,50,70,C.muted,500,'left',ap);
+  ctx.restore();
+  text('Sunrise Bakery is still asleep...',W/2,H/2+170,46,C.muted,400,'center',easeOut(prog(t,1.0,1.8)));
+  ctx.restore();
+}
+
+// ---------- scene 2: agent wakes, reads 4 files (3.4 - 7.9) ----------
+const files=[
+  {name:'Sales log',kind:'sheet',col:C.teal,side:-1,row:0},
+  {name:'Inventory',kind:'sheet',col:C.blue,side:-1,row:1},
+  {name:'This week',kind:'doc',col:C.pink,side:1,row:0},
+  {name:'Handbook',kind:'doc',col:C.white,side:1,row:1},
+];
+function core(x,y,r,t,a,label=true){
+  ctx.save();const base=ctx.globalAlpha*a;ctx.globalAlpha=base;
+  const pulse=1+.04*Math.sin(t*5);
+  glow(x,y,r*2.6*pulse,C.amberSoft,.30);
+  ctx.strokeStyle=C.amber;ctx.lineWidth=4;
+  for(let i=0;i<3;i++){ctx.globalAlpha=base*(.5-i*.14);ctx.beginPath();ctx.arc(x,y,r*(1.25+i*.28)*pulse,0,7);ctx.stroke();}
+  ctx.globalAlpha=base;const g=ctx.createRadialGradient(x-r*.3,y-r*.3,r*.1,x,y,r);g.addColorStop(0,'#F7CF8A');g.addColorStop(1,'#C9832B');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  // simple friendly "eyes"
+  ctx.fillStyle=C.bg;const blink=(Math.sin(t*1.7)>.97)?.15:1;
+  [-1,1].forEach(s=>{ctx.beginPath();ctx.ellipse(x+s*r*.28,y-r*.05,r*.09,r*.14*blink,0,0,7);ctx.fill();});
+  ctx.strokeStyle=C.bg;ctx.lineWidth=r*.07;ctx.lineCap='round';ctx.beginPath();ctx.arc(x,y+r*.12,r*.25,.2*Math.PI,.8*Math.PI);ctx.stroke();
+  if(label){text('MORNING MANAGER',x,y+r+70,30,C.amber,600,'center',1,6);text('AI agent',x,y+r+112,28,C.muted,400,'center');}
+  ctx.restore();
+}
+function fileCard(f,x,y,a,highlight){
+  ctx.save();ctx.globalAlpha*=a;
+  rr(x-170,y-58,340,116,20);ctx.fillStyle=C.card;ctx.fill();ctx.strokeStyle=highlight?f.col:C.cardLine;ctx.lineWidth=highlight?3:2;ctx.stroke();
+  (f.kind=='sheet'?sheetIcon:docIcon)(x-140,y-34,46,f.col);
+  text(f.name,x-70,y-10,34,C.white,600,'left');
+  text(f.kind=='sheet'?'Google Sheet':'Google Doc',x-70,y+26,22,C.muted,400,'left');
+  ctx.restore();
+}
+function scene2(t,a){
+  if(a<=0)return; const lt=t-3.4;
+  ctx.save();ctx.globalAlpha=a;
+  text('At 6:30 its AI agent wakes up',W/2,140,52,C.white,600,'center',easeOut(prog(lt,.2,.9)));
+  text('and reads the latest files from Google Drive',W/2,205,34,C.muted,400,'center',easeOut(prog(lt,.5,1.2)));
+  const cx=W/2,cy=H/2+120;
+  const cr=lerp(0,95,back(prog(lt,.1,.9)));
+  files.forEach((f,i)=>{
+    const d=prog(lt,.9+i*.35,1.6+i*.35), e=easeOut(d);
+    const tx=cx+f.side*560, ty=cy-90+f.row*190;
+    const sx=cx+f.side*1150;
+    const x=lerp(sx,tx,e);
+    // data line flowing into core
+    const lp=prog(lt,1.6+i*.35,2.4+i*.35);
+    if(lp>0){ctx.save();ctx.strokeStyle=f.col;ctx.globalAlpha*=.8;ctx.lineWidth=3;ctx.setLineDash([10,12]);ctx.lineDashOffset=-lt*60;
+      ctx.beginPath();const x0=tx-f.side*170,x1=cx-f.side*cr*1.3;ctx.moveTo(x0,ty);ctx.lineTo(lerp(x0,x1,easeOut(lp)),lerp(ty,cy,easeOut(lp)));ctx.stroke();ctx.restore();}
+    fileCard(f,x,ty,e,lp>.99);
+  });
+  if(cr>1)core(cx,cy,cr,t,1,lt>.8);
+  ctx.restore();
+}
+
+// ---------- scene 3: findings (7.5 - 12.4) ----------
+const finds=[
+  {title:'Monday: bake less sourdough',sub:'45% went in the bin on the last 2 Mondays',col:C.red,tag:'PATTERN'},
+  {title:'Almond flour: 0 kg',sub:'Supplier email drafted for 15 kg',col:C.amber,tag:'STOCK'},
+  {title:'Saturday wedding order',sub:'Bake 140 croissants, not 60',col:C.pink,tag:'THIS WEEK'},
+];
+function scene3(t,a){
+  if(a<=0)return; const lt=t-7.5;
+  ctx.save();ctx.globalAlpha=a;
+  core(380,H/2+40,80,t,1,false);
+  text('It finds what matters',380,H/2+200,34,C.white,600,'center',easeOut(prog(lt,.2,.8)));
+  text('without being asked',380,H/2+245,28,C.muted,400,'center',easeOut(prog(lt,.4,1.0)));
+  finds.forEach((f,i)=>{
+    const p=prog(lt,.5+i*.9,1.1+i*.9), e=back(p);
+    if(p<=0)return;
+    const y=250+i*230, x=lerp(1500,1150,easeOut(p));
+    const ca=ctx.globalAlpha*clamp(p*2);ctx.save();ctx.globalAlpha=ca;ctx.translate(x,y);ctx.scale(lerp(.85,1,e),lerp(.85,1,e));
+    rr(-430,-90,860,180,24);ctx.fillStyle=C.card;ctx.fill();ctx.strokeStyle=f.col;ctx.lineWidth=3;ctx.stroke();
+    rr(-430,-90,14,180,7);ctx.fillStyle=f.col;ctx.fill();
+    // tag pill
+    ctx.font=`600 20px ${F}`;const tw=ctx.measureText(f.tag).width+36;
+    rr(-385,-62,tw,36,18);ctx.fillStyle=f.col;ctx.globalAlpha=ca*.18;ctx.fill();ctx.globalAlpha=ca;
+    text(f.tag,-385+tw/2,-44,20,f.col,600,'center',1,2);
+    text(f.title,-385,4,44,C.white,700,'left');
+    text(f.sub,-385,52,28,C.muted,400,'left');
+    ctx.restore();
+    // connector from core
+    ctx.save();ctx.strokeStyle=f.col;ctx.globalAlpha*=.5*clamp(p*2);ctx.lineWidth=2;ctx.setLineDash([6,10]);
+    ctx.beginPath();ctx.moveTo(480,H/2+40);ctx.lineTo(x-430,y);ctx.stroke();ctx.restore();
+  });
+  ctx.restore();
+}
+
+// ---------- scene 4: draft + phone report (12 - 15.6) ----------
+function scene4(t,a){
+  if(a<=0)return; const lt=t-12;
+  ctx.save();ctx.globalAlpha=a;
+  text('Ready before 7:00. Maya just says yes.',W/2,130,50,C.white,600,'center',easeOut(prog(lt,.1,.8)));
+  // email draft card
+  const p=easeOut(prog(lt,.3,1.1));
+  ctx.save();ctx.translate(lerp(560,690,p),H/2+60);ctx.globalAlpha*=p;
+  rr(-380,-230,760,460,26);ctx.fillStyle=C.card;ctx.fill();ctx.strokeStyle=C.cardLine;ctx.lineWidth=2;ctx.stroke();
+  rr(-380,-230,760,70,26);ctx.fillStyle='#1d1d1d';ctx.fill();
+  text('New email',-340,-195,28,C.white,600,'left');
+  rr(150,-214,200,38,19);ctx.fillStyle='rgba(232,168,76,.18)';ctx.fill();text('DRAFT - not sent',250,-195,20,C.amber,600,'center');
+  const rows=[['To','sales@greenpantry.example'],['Subject','Almond flour order - 15 kg']];
+  rows.forEach((r,i)=>{text(r[0],-340,-115+i*62,26,C.muted,400,'left');text(r[1],-200,-115+i*62,28,C.white,500,'left');
+    ctx.strokeStyle=C.cardLine;ctx.beginPath();ctx.moveTo(-350,-85+i*62);ctx.lineTo(350,-85+i*62);ctx.stroke();});
+  ['Hi Green Pantry team,','Could you deliver 15 kg of almond flour','this week? Thank you!','Maya, Sunrise Bakery and Cafe'].forEach((l,i)=>{
+    const lp=prog(lt,1.0+i*.25,1.3+i*.25);text(l,-340,30+i*46,26,i==3?C.amber:C.white,i==3?500:400,'left',lp);});
+  ctx.restore();
+  // phone
+  const q=back(prog(lt,.6,1.4));
+  ctx.save();ctx.translate(1390,H/2+70);ctx.scale(q,q);ctx.globalAlpha*=clamp(q);
+  rr(-170,-320,340,640,46);ctx.fillStyle='#111';ctx.fill();ctx.strokeStyle='#3a3a3a';ctx.lineWidth=5;ctx.stroke();
+  rr(-150,-296,300,592,32);ctx.fillStyle='#181818';ctx.fill();
+  rr(-45,-286,90,22,11);ctx.fillStyle='#000';ctx.fill();
+  text('Morning report',-120,-230,26,C.white,700,'left');
+  text('Mon 5 Oct, 6:31',-120,-196,18,C.muted,400,'left');
+  const items=[[C.red,'Less sourdough today'],[C.amber,'Almond flour: draft'],[C.pink,'Sat: 140 croissants'],[C.green,'Yesterday: 907 EUR']];
+  items.forEach((it,i)=>{const ip=prog(lt,1.2+i*.3,1.5+i*.3);ctx.save();ctx.globalAlpha*=ip;
+    rr(-138,-150+i*92,276,72,14);ctx.fillStyle='#222';ctx.fill();ctx.fillStyle=it[0];ctx.beginPath();ctx.arc(-114,-114+i*92,9,0,7);ctx.fill();
+    text(it[1],-96,-114+i*92,19,C.white,500,'left');ctx.restore();});
+  const cp=prog(lt,2.5,3.0);if(cp>0){ctx.save();ctx.globalAlpha*=cp;ctx.fillStyle=C.green;ctx.beginPath();ctx.arc(0,240,34,0,7);ctx.fill();ctx.restore();check(0,240,44,C.bg,cp);}
+  ctx.restore();
+  ctx.restore();
+}
+
+// ---------- scene 5: title + 6 ingredients (15.2 - 20) ----------
+const chips=[['Brain',C.amber],['Job',C.blue],['Tools',C.teal],['Knowledge',C.green],['Skill',C.pink],['Trigger',C.red]];
+function scene5(t,a){
+  if(a<=0)return; const lt=t-15.2;
+  ctx.save();ctx.globalAlpha=a;
+  text('CLAUDE AI FOR BEGINNERS',W/2,190,28,C.amber,600,'center',easeOut(prog(lt,.1,.6)),8);
+  const h=easeOut(prog(lt,.25,1.0));
+  ctx.save();ctx.translate(0,lerp(30,0,h));
+  text('Build Your First',W/2,340,104,C.white,700,'center',h);
+  text('AI Agent in Claude',W/2,465,104,C.white,700,'center',h);
+  ctx.restore();
+  // underline sweep
+  const u=easeInOut(prog(lt,.9,1.6));ctx.save();ctx.strokeStyle=C.amber;ctx.lineWidth=8;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(W/2-420,535);ctx.lineTo(W/2-420+840*u,535);ctx.stroke();ctx.restore();
+  text('No code.  Mostly FREE.  Real business demo.',W/2,610,40,C.muted,400,'center',easeOut(prog(lt,1.2,1.8)));
+  // chips
+  const cw=222,gap=22,total=chips.length*cw+(chips.length-1)*gap,x0=W/2-total/2;
+  chips.forEach((c,i)=>{const p=prog(lt,1.7+i*.18,2.1+i*.18);if(p<=0)return;const e=back(p);
+    const x=x0+i*(cw+gap)+cw/2,y=745;ctx.save();ctx.translate(x,y);ctx.scale(e,e);ctx.globalAlpha*=clamp(p*1.5);
+    rr(-cw/2,-40,cw,80,40);ctx.fillStyle=C.card;ctx.fill();ctx.strokeStyle=c[1];ctx.lineWidth=3;ctx.stroke();
+    ctx.fillStyle=c[1];ctx.beginPath();ctx.arc(-cw/2+34,0,15,0,7);ctx.fill();text(String(i+1),-cw/2+34,1,18,C.bg,700,'center');
+    text(c[0],-cw/2+60,1,26,C.white,600,'left');ctx.restore();});
+  text('@datasciencebasics',W/2,930,30,C.muted,500,'center',easeOut(prog(lt,2.9,3.5)),2);
+  ctx.restore();
+}
+
+function render(t){
+  ctx.save();background(t);
+  // scenes fade out, then the next fades in (no overlap)
+  scene1(t,sceneAlpha(t,-1,3.6,.35));
+  scene2(t,sceneAlpha(t,3.6,7.8,.35));
+  scene3(t,sceneAlpha(t,7.8,12.3,.35));
+  scene4(t,sceneAlpha(t,12.3,15.5,.35));
+  scene5(t,Math.min(prog(t,15.5,15.85),1-prog(t,19.6,20)));
+  ctx.restore();
+}
+window.render=render;
+
+// live preview loop (disabled when ?render is in the URL)
+if(!location.search.includes('render')){
+  let start=null;
+  const loop=ts=>{if(start===null)start=ts;const t=((ts-start)/1000)%DURATION;render(t);requestAnimationFrame(loop);};
+  document.fonts.ready.then(()=>requestAnimationFrame(loop));
+} else { render(0); }
+</script>
+</body>
+</html>

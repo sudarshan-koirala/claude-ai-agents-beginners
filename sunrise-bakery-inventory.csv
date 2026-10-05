@@ -1,0 +1,21 @@
+ingredient,on_hand,unit,reorder_point,supplier,supplier_email,count_daily,last_counted,counted_by
+Bread flour,120,kg,40,Nordic Mills,orders@nordicmills.example,yes,2026-10-04,Leo
+Rye flour,35,kg,15,Nordic Mills,orders@nordicmills.example,no,2026-09-28,Maya
+Almond flour,0,kg,5,Green Pantry Wholesale,sales@greenpantry.example,yes,2026-10-04,Leo
+Butter,26,kg,20,Valley Dairy,orders@valleydairy.example,yes,2026-10-02,Leo
+Whole milk,40,l,20,Valley Dairy,orders@valleydairy.example,yes,2026-10-04,Leo
+Eggs,180,pcs,120,Valley Dairy,orders@valleydairy.example,yes,2026-10-04,Leo
+Sugar,60,kg,25,Sweet Supply Co,hello@sweetsupply.example,yes,2026-10-04,Leo
+Brown sugar,18,kg,10,Sweet Supply Co,hello@sweetsupply.example,no,2026-09-28,Maya
+Cinnamon,1.2,kg,1.0,Spice Route Traders,orders@spiceroute.example,yes,2026-10-04,Leo
+Vanilla extract,1.5,l,0.5,Spice Route Traders,orders@spiceroute.example,no,2026-09-28,Maya
+Blueberries (frozen),14,kg,8,Green Pantry Wholesale,sales@greenpantry.example,yes,2026-10-04,Leo
+Sliced almonds,6,kg,3,Green Pantry Wholesale,sales@greenpantry.example,no,2026-09-28,Maya
+Yeast (fresh),4,kg,2,Nordic Mills,orders@nordicmills.example,yes,2026-10-04,Leo
+Sea salt,10,kg,3,Spice Route Traders,orders@spiceroute.example,no,2026-09-28,Maya
+Cream cheese,9,kg,6,Valley Dairy,orders@valleydairy.example,no,2026-09-28,Maya
+Paper bags,900,pcs,400,PackRight,service@packright.example,no,2026-09-28,Maya
+Coffee beans,22,kg,10,Bean There Roasters,wholesale@beanthere.example,no,2026-09-28,Maya
+Oat milk,24,l,12,Green Pantry Wholesale,sales@greenpantry.example,no,2026-09-28,Maya
+Chocolate chips,11,kg,5,Sweet Supply Co,hello@sweetsupply.example,no,2026-09-28,Maya
+Cardamom,0.8,kg,0.5,Spice Route Traders,orders@spiceroute.example,no,2026-09-28,Maya
